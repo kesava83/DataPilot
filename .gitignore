@@ -11,7 +11,7 @@ __pycache__/
 .env
 
 # Generated sample database
-sample_ecommerce.db
+#sample_ecommerce.db
 
 # IDE
 .vscode/
