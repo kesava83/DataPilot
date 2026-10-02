@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NLP AI - Natural Language PostgreSQL Studio</title>
+  <meta name="description" content="Query your PostgreSQL database in plain natural language. Instantly translate business questions to optimized SQL, explore schemas, and visualize data trends.">
+
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome 6 Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Chart.js 4.4 for dynamic visualizations -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+
+  <!-- Custom Design System Stylesheet -->
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <div class="app-container">
+
+    <!-- Top Navigation Bar -->
+    <header class="navbar" id="topNavbar">
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <button class="btn btn-icon btn-ghost" id="sidebarToggleBtn" onclick="App.toggleSidebar()" title="Toggle Schema Sidebar">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <a href="#" class="brand">
+          <div class="brand-icon">
+            <i class="fa-solid fa-database"></i>
+          </div>
+          <span style="letter-spacing: -0.5px;">NLP <span style="color: var(--accent-secondary);">AI</span></span>
+          <span class="brand-badge">Postgres</span>
+        </a>
+      </div>
+
+      <!-- Center Status Badges -->
+      <div class="nav-center">
+        <!-- Database Connection Badge -->
+        <div class="status-pill" id="navDbStatus" onclick="Settings.openDbModal()" title="Click to configure Database connection">
+          <span class="pulse-dot"></span>
+          <span>Connecting DB...</span>
+        </div>
+
+        <!-- AI Provider Badge -->
+        <div class="status-pill" id="navAiStatus" onclick="Settings.openAiModal()" title="Click to configure AI Provider & Model">
+          <i class="fa-solid fa-brain" style="color: var(--accent-secondary); font-size: 0.8rem;"></i>
+          <span>AI Settings</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="nav-actions">
+        <button class="btn btn-secondary" onclick="Settings.openSqlEditor()" title="Open Direct SQL Query Editor">
+          <i class="fa-solid fa-code"></i> Direct SQL
+        </button>
+        <button class="btn btn-ghost btn-icon" id="clearChatBtn" onclick="App.clearChat()" title="Clear Chat History">
+          <i class="fa-solid fa-rotate-left"></i>
+        </button>
+        <button class="btn btn-ghost btn-icon" id="themeToggleBtn" onclick="App.toggleTheme()" title="Toggle Dark / Light Mode">
+          <i class="fa-solid fa-sun"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace Layout -->
+    <div class="workspace">
+
+      <!-- Left Sidebar: Schema Browser -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <div class="sidebar-title">
+            <span><i class="fa-solid fa-table-columns" style="color: var(--accent-secondary); margin-right: 6px;"></i> Tables & Schema</span>
+            <span class="badge" id="sidebarTableCount">0 tables</span>
+          </div>
+          <div class="search-input-wrapper">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" class="search-input" id="tableSearchInput" placeholder="Filter tables & columns...">
+          </div>
+        </div>
+
+        <div class="schema-tables-list" id="schemaTablesList">
+          <!-- Populated dynamically by schema.js -->
+        </div>
+
+        <div class="sidebar-footer">
+          <button class="btn btn-secondary" style="width: 100%; font-size: 0.78rem;" onclick="Settings.openDbModal()">
+            <i class="fa-solid fa-plug"></i> Connection Settings
+          </button>
+        </div>
+      </aside>
+
+      <!-- Center / Main: Conversational Canvas -->
+      <main class="chat-main" id="chatMain">
+
+        <!-- Scrollable Chat Stream -->
+        <div class="chat-messages" id="chatMessages">
+
+          <!-- Welcome Hero (shown when no messages yet) -->
+          <div class="welcome-hero" id="welcomeHero">
+            <div class="hero-icon">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </div>
+            <h1 class="hero-title">Talk to Your PostgreSQL Database</h1>
+            <p class="hero-subtitle">
+              Ask questions in plain conversational English. The AI automatically inspects your schema, generates optimized SQL, executes read-only queries safely, and visualizes the results with charts and key business insights.
+            </p>
+
+            <div class="preset-grid" id="presetGrid">
+              <!-- Preset suggestion cards dynamically populated by chat.js -->
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Floating Chat Input Dock -->
+        <div class="chat-input-dock">
+          <div class="input-box-wrapper">
+            <textarea
+              class="chat-textarea"
+              id="chatInput"
+              rows="1"
+              placeholder="Ask anything about your database in plain English (e.g., 'What are our top 5 products by revenue?')"
+            ></textarea>
+            <button class="chat-send-btn" id="chatSendBtn" onclick="Chat.sendMessage()" title="Send query (Enter)">
+              <i class="fa-solid fa-arrow-up"></i>
+            </button>
+          </div>
+          <div class="input-hints">
+            <span><i class="fa-solid fa-shield-halved" style="color: var(--success-color);"></i> Read-only safety guard active</span>
+            <span>Press <kbd style="background: rgba(255,255,255,0.1); padding: 1px 5px; border-radius: 3px;">Enter</kbd> to query, <kbd style="background: rgba(255,255,255,0.1); padding: 1px 5px; border-radius: 3px;">Shift + Enter</kbd> for newline</span>
+          </div>
+        </div>
+
+      </main>
+
+    </div>
+
+    <!-- MODAL 1: Database Connection Settings -->
+    <div class="modal-overlay" id="dbModal">
+      <div class="modal-window">
+        <div class="modal-header">
+          <div class="modal-title">
+            <i class="fa-solid fa-database" style="color: var(--accent-primary);"></i>
+            <span>Database Connection Settings</span>
+          </div>
+          <button class="btn btn-ghost btn-icon" onclick="Settings.closeDbModal()">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: var(--radius-md); padding: 12px; font-size: 0.82rem; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 2px;">Testing without Postgres yet?</div>
+              <span>Switch to the instant pre-populated eCommerce SQLite demo database.</span>
+            </div>
+            <button class="btn btn-secondary" style="font-size: 0.78rem; flex-shrink: 0;" onclick="Settings.switchToSampleDb()">
+              <i class="fa-solid fa-bolt" style="color: #fbbf24;"></i> Use Demo DB
+            </button>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group" style="flex: 2;">
+              <label class="form-label">Host</label>
+              <input type="text" class="form-input" id="dbHost" placeholder="localhost or db.example.com">
+            </div>
+            <div class="form-group" style="flex: 1;">
+              <label class="form-label">Port</label>
+              <input type="number" class="form-input" id="dbPort" placeholder="5432" value="5432">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Database Name</label>
+              <input type="text" class="form-input" id="dbName" placeholder="my_database">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Schema</label>
+              <input type="text" class="form-input" id="dbSchema" placeholder="public" value="public">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Username</label>
+              <input type="text" class="form-input" id="dbUser" placeholder="postgres">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Password</label>
+              <input type="password" class="form-input" id="dbPassword" placeholder="Enter password (stored locally in memory)">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">SSL Mode</label>
+            <select class="form-select" id="dbSsl">
+              <option value="prefer">Prefer (Default)</option>
+              <option value="require">Require (Recommended for Cloud DBs like RDS / Supabase)</option>
+              <option value="disable">Disable (Local development)</option>
+              <option value="allow">Allow</option>
+            </select>
+          </div>
+
+          <div id="dbTestResult" style="display: none; padding: 12px; border-radius: var(--radius-md); font-size: 0.82rem;"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="dbTestBtn" onclick="Settings.testDbConnection()">
+            <i class="fa-solid fa-vial"></i> Test Connection
+          </button>
+          <button class="btn btn-primary" id="dbSaveBtn" onclick="Settings.saveDbConnection()">
+            <i class="fa-solid fa-check"></i> Save & Connect
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL 2: AI Provider Settings -->
+    <div class="modal-overlay" id="aiModal">
+      <div class="modal-window">
+        <div class="modal-header">
+          <div class="modal-title">
+            <i class="fa-solid fa-robot" style="color: var(--accent-secondary);"></i>
+            <span>AI Provider & LLM Settings</span>
+          </div>
+          <button class="btn btn-ghost btn-icon" onclick="Settings.closeAiModal()">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Selected AI Provider</label>
+            <select class="form-select" id="aiProviderSelect">
+              <option value="gemini">Google Gemini (Recommended)</option>
+              <option value="openai">OpenAI (GPT-4o / GPT-4o-mini)</option>
+              <option value="ollama">Ollama (Local Offline LLM)</option>
+              <option value="mock">Smart Demo / Heuristic Fallback (No API key needed)</option>
+            </select>
+          </div>
+
+          <!-- Gemini Configuration Group -->
+          <div id="geminiSettingsGroup">
+            <div class="form-group">
+              <label class="form-label">Gemini API Key</label>
+              <input type="password" class="form-input" id="geminiApiKey" placeholder="AIzaSy...">
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">
+                Get a free key from <a href="https://aistudio.google.com/" target="_blank" style="color: var(--accent-secondary);">Google AI Studio</a>.
+              </div>
+            </div>
+            <div class="form-group" style="margin-top: 10px;">
+              <label class="form-label">Gemini Model</label>
+              <select class="form-select" id="geminiModelSelect">
+                <option value="gemini-2.5-flash">gemini-2.5-flash (Fast & highly accurate)</option>
+                <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+                <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- OpenAI Configuration Group -->
+          <div id="openaiSettingsGroup" style="display: none;">
+            <div class="form-group">
+              <label class="form-label">OpenAI API Key</label>
+              <input type="password" class="form-input" id="openaiApiKey" placeholder="sk-...">
+            </div>
+            <div class="form-group" style="margin-top: 10px;">
+              <label class="form-label">OpenAI Model</label>
+              <select class="form-select" id="openaiModelSelect">
+                <option value="gpt-4o-mini">gpt-4o-mini</option>
+                <option value="gpt-4o">gpt-4o</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Ollama Configuration Group -->
+          <div id="ollamaSettingsGroup" style="display: none;">
+            <div class="form-group">
+              <label class="form-label">Ollama Base URL</label>
+              <input type="text" class="form-input" id="ollamaBaseUrl" placeholder="http://localhost:11434">
+            </div>
+            <div class="form-group" style="margin-top: 10px;">
+              <label class="form-label">Model Name</label>
+              <input type="text" class="form-input" id="ollamaModel" placeholder="llama3:latest">
+            </div>
+          </div>
+
+          <!-- Demo Mode Info -->
+          <div id="mockInfoGroup" style="display: none;">
+            <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-md); padding: 12px; font-size: 0.82rem; color: #a7f3d0;">
+              <i class="fa-solid fa-circle-check"></i> Demo mode uses smart pattern matching to generate SQL queries for standard questions (best sellers, revenue trends, customer rankings) without requiring any external API key.
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="Settings.closeAiModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="Settings.saveAiSettings()">
+            <i class="fa-solid fa-floppy-disk"></i> Save Settings
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL 3: Direct SQL Query Runner -->
+    <div class="modal-overlay" id="sqlEditorModal">
+      <div class="modal-window" style="max-width: 800px;">
+        <div class="modal-header">
+          <div class="modal-title">
+            <i class="fa-solid fa-code" style="color: var(--accent-primary);"></i>
+            <span>SQL Query Runner & Editor</span>
+          </div>
+          <button class="btn btn-ghost btn-icon" onclick="Settings.closeSqlEditor()">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">SQL Query</label>
+            <textarea
+              class="form-input"
+              id="sqlEditorInput"
+              rows="6"
+              style="font-family: var(--font-mono); font-size: 0.82rem; line-height: 1.45;"
+              placeholder="SELECT * FROM customers LIMIT 10;"
+            ></textarea>
+          </div>
+          <div id="sqlEditorResult"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="Settings.closeSqlEditor()">Close</button>
+          <button class="btn btn-primary" id="runCustomSqlBtn" onclick="Settings.runCustomSql()">
+            <i class="fa-solid fa-play"></i> Run SQL
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL 4: Table Sample Rows Preview -->
+    <div class="modal-overlay" id="previewModal">
+      <div class="modal-window" style="max-width: 850px;">
+        <div class="modal-header">
+          <div class="modal-title" id="previewModalTitle">Table Preview</div>
+          <button class="btn btn-ghost btn-icon" onclick="document.getElementById('previewModal').classList.remove('active')">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <div class="modal-body" id="previewModalBody">
+          <!-- Populated by schema.js -->
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="document.getElementById('previewModal').classList.remove('active')">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Global Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+  </div>
+
+  <!-- Application Scripts -->
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/visualizer.js"></script>
+  <script src="/static/js/schema.js"></script>
+  <script src="/static/js/settings.js"></script>
+  <script src="/static/js/chat.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
